@@ -39,11 +39,12 @@ io.on('connection', function(socket) {
        // console.log('Reason: ' + reason);
     });
 
-  var stream = null;
+  var stream = null; 
 
   console.log("twitter setup done");
 
-  socket.on('startStream', function() {
+  socket.on('startStream', function(topic) {
+    stream = null;
     console.log("stream started");
     var sanFrancisco = ['-180', '-90', '180', '90'];
     var tweetData = {};
@@ -51,7 +52,7 @@ io.on('connection', function(socket) {
     if (stream === null) {
       stream = T.stream('statuses/filter', {
         locations: sanFrancisco,
-        track: 'nfl'
+        track: topic
       });
       
       var singleTweets = []
@@ -65,7 +66,7 @@ io.on('connection', function(socket) {
           if (tweetCount < 10) {          
 
             //console.log(tweet.coordinates.coordinates);
-            //console.log(tweet.text);
+            console.log(tweet.text);
 
            // tweetData[tweetCount] = tweet.text;
            var singletweet = {
@@ -80,8 +81,8 @@ io.on('connection', function(socket) {
           } else{
            
             sentiment140.sentiment(tweetData, function(error, result) {
-            	console.log(result[1].id);
-            	console.log(result[1].polarity);
+            	//console.log(result[1].id);
+            	//console.log(result[1].polarity);
             	
             	io.emit('bulkTweetInfo', result);
             //	console.log(error);

@@ -23,21 +23,15 @@
     <link rel="stylesheet" type="text/css" href="main.css">
     <div ng-controller="mapCtrl">
         <div class="col-md-12 text-center">
-            <h1>The Happiest Places on Earth</h1>
+            <h1>The Happiest Places on Earth thinking about...</h1>
             <h3><i>According to Twitter</i></h3>
+             <input type="text" id="topic"></input>    <button class="btn btn-sm" onclick="submitTopic()">Submit</button>
+             <p>Submit which topic you want to see people thinking happy thoughts about above</p>
         </div>
-
+       
         <!--<div class='map' id='map' style='width: 400px; height: 300px;'></div>-->
         <div class="row">
-
-            <div id="happiest" class="col-sm-6 text-center">
-                <h3>Happiest</h3>
-            </div>
-            <div id="saddest" class="col-sm-6 text-center">
-                <h3>Saddest</h3>
-            </div>
             <div class="col-lg-12" style="height: 850px;" id="map"></div>
-
         </div>
     </div>
     <script>
@@ -53,9 +47,16 @@
     </script>
     <script>
         var socket = io.connect();
+        
 
-        socket.emit('startStream');
-
+        function submitTopic(){
+            var topic = document.getElementById('topic');
+            firebase.database().ref('locations/').remove().then(function(snapshot){
+                console.log("topic: " + topic);
+                socket.emit('startStream', topic);
+            });
+            
+        }
 
         socket.on('bulkTweetInfo', function(result) {
             // console.log("bulkTweetInfo");
@@ -68,9 +69,7 @@
                 } else if(result[i].polarity == 2){
                     result[i].polarity = 0;
                 } else if(result[i].polarity == 4){
-                    result[i].polarity = 2;
-                }
-                firebase.database().ref('locations/').push({
+                    firebase.database().ref('locations/').push({
                     
                     loc: result[i].id,
                     polarity: result[i].polarity
@@ -80,8 +79,11 @@
                     console.log("Error: " + error.message);
 
                 });
+                    result[i].polarity = 2;
+                }
+                
 
-                console.log(result[i].id);
+               // console.log(result[i].id);
             }
         });
     </script>
@@ -103,27 +105,33 @@
             
             ]
         }
+        
+        locRef.on("child_removed", function(snapshot, prevChildKey){
+           geojson.features = []; 
+        });
                                                                                         
         locRef.on("child_added", function(snapshot, prevChildKey) {
           var location = snapshot.child("loc").val();
           var polarity = snapshot.child("polarity").val();
          // console.log(location);
          // console.log(polarity);
-          var geometry = {
-              "type": "Feature",
-              "properties": { "Primary ID": polarity},
-              "geometry":{
-              "type": "Point",
-              "coordinates": location
-              }
-          };
-          
-          geojson.features.push(geometry);
-          console.log(geojson);
+         if(polarity > 0){
+              var geometry = {
+                  "type": "Feature",
+                  "properties": { "Primary ID": polarity},
+                  "geometry":{
+                  "type": "Point",
+                  "coordinates": location
+                  }
+              };
+              geojson.features.push(geometry);
+            //  console.log(geojson);
+         }
         });
         
         map.on('load', function() {
-
+    
+    
         window.setInterval(function() {
             map.getSource('earthquakes').setData(geojson);
         }, 200);
