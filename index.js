@@ -51,7 +51,7 @@ io.on('connection', function(socket) {
     if (stream === null) {
       stream = T.stream('statuses/filter', {
         locations: sanFrancisco,
-        track: 'pumpkin'
+        track: 'nfl'
       });
       
       var singleTweets = []

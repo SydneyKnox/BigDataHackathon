@@ -6,8 +6,8 @@ body {
 
 #map {
   position: relative;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  width: 90%;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  width: 100%;
   margin:auto;
 }

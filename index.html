@@ -23,18 +23,24 @@
     <link rel="stylesheet" type="text/css" href="main.css">
     <div ng-controller="mapCtrl">
         <div class="col-md-12 text-center">
-            <h1>Twitter</h1>
+            <h1>The Happiest Places on Earth</h1>
+            <h3><i>According to Twitter</i></h3>
         </div>
 
         <!--<div class='map' id='map' style='width: 400px; height: 300px;'></div>-->
-        <div class="col-lg-12" style = "height: 400px;" id="map"></div>
-        
-        <div id="StateCounts">
-            
+        <div class="row">
+
+            <div id="happiest" class="col-sm-6 text-center">
+                <h3>Happiest</h3>
+            </div>
+            <div id="saddest" class="col-sm-6 text-center">
+                <h3>Saddest</h3>
+            </div>
+            <div class="col-lg-12" style="height: 850px;" id="map"></div>
+
         </div>
     </div>
     <script>
-
         // Initialize Firebase
         var config = {
             apiKey: "AIzaSyC1lQySwjk23qJkB7dr_POcVZFiZh9CAKw",
@@ -49,42 +55,145 @@
         var socket = io.connect();
 
         socket.emit('startStream');
-        
-    
-        socket.on('bulkTweetInfo', function(result){
-            console.log("bulkTweetInfo");
-            console.log(result.length);
-            
+
+
+        socket.on('bulkTweetInfo', function(result) {
+            // console.log("bulkTweetInfo");
+            // console.log(result.length);
+
             for(var i=0;i<result.length;i++){
                 
+                if(result[i].polarity == 0){
+                    result[i].polarity = -2;
+                } else if(result[i].polarity == 2){
+                    result[i].polarity = 0;
+                } else if(result[i].polarity == 4){
+                    result[i].polarity = 2;
+                }
                 firebase.database().ref('locations/').push({
                     
                     loc: result[i].id,
                     polarity: result[i].polarity
-                    
+
                 }).catch(function(error){
-                    
+
                     console.log("Error: " + error.message);
-                    
+
                 });
-                
+
                 console.log(result[i].id);
             }
         });
     </script>
-    
-    
-    <!--add map markers-->
+
     <script>
-            mapboxgl.accessToken = 'pk.eyJ1Ijoicm9oaXQ1NjMiLCJhIjoiY2lvOWVvOXF1MDMzMHZna3FlaHhvOWlhdiJ9.TteSK1QqcHbsPAIdDR7loQ';
+        mapboxgl.accessToken = 'pk.eyJ1Ijoicm9oaXQ1NjMiLCJhIjoiY2lvOWVvOXF1MDMzMHZna3FlaHhvOWlhdiJ9.TteSK1QqcHbsPAIdDR7loQ';
         var map = new mapboxgl.Map({
             container: 'map', // <- missing div!
-            style: 'mapbox://styles/rohit563/cio9hm9h7001xaem59k4izfgf',
-            center: [-74.50, 40], // starting position
-            zoom: 4 // starting zoom
+            style: 'mapbox://styles/mapbox/dark-v9',
+            center: [-103.59179687498357, 40.66995747013945], // starting position
+            zoom: 3 // starting zoom
         });
-    </script>
+        //var database = firebase.database();
+        var locRef = firebase.database().ref('locations/');
+        var firstRun = true;
+        var geojson = {
+            "type": "FeatureCollection",
+            "features":[
+            
+            ]
+        }
+                                                                                        
+        locRef.on("child_added", function(snapshot, prevChildKey) {
+          var location = snapshot.child("loc").val();
+          var polarity = snapshot.child("polarity").val();
+         // console.log(location);
+         // console.log(polarity);
+          var geometry = {
+              "type": "Feature",
+              "properties": { "Primary ID": polarity},
+              "geometry":{
+              "type": "Point",
+              "coordinates": location
+              }
+          };
+          
+          geojson.features.push(geometry);
+          console.log(geojson);
+        });
+        
+        map.on('load', function() {
+
+        window.setInterval(function() {
+            map.getSource('earthquakes').setData(geojson);
+        }, 200);
+
+        // Add a new source from our GeoJSON data and set the
+        // 'cluster' option to true.
+        map.addSource("earthquakes", {
+            type: "geojson",
+            // Point to GeoJSON data. This example visualizes all M1.0+ earthquakes
+            // from 12/22/15 to 1/21/16 as logged by USGS' Earthquake hazards program.
+            data: geojson,
+            cluster: true,
+            clusterMaxZoom: 14, // Max zoom to cluster points on
+            clusterRadius: 50 // Radius of each cluster when clustering points (defaults to 50)
+           // clusterAggregate: ['polarity']
+        });
+
+   
+        map.addLayer({
+            "id": "unclustered-points",
+            "type": "symbol",
+            "source": "earthquakes",
+            "filter": ["!has", "point_count"],
+            "layout": {
+                "icon-image": "marker-15"
+            }
+        });
+    
+        
+        var layers = [
+            [150, '#f28cb1'],
+            [20, '#f1f075'],
+            [0, '#51bbd6']
+        ];
+    
+        layers.forEach(function (layer, i) {
+            map.addLayer({
+                "id": "cluster-" + i,
+                "type": "circle",
+                "source": "earthquakes",
+                "paint": {
+                    "circle-color": layer[1],
+                    "circle-radius": 18
+                },
+                "filter": i === 0 ?
+                    [">=", "point_count", layer[0]] :
+                    ["all",
+                        [">=", "point_count", layer[0]],
+                        ["<", "point_count", layers[i - 1][0]]]
+            });
+        });
+    
+        // Add a layer for the clusters' count labels
+        map.addLayer({
+            "id": "cluster-count",
+            "type": "symbol",
+            "source": "earthquakes",
+            "layout": {
+                "text-field": "{point_count}",
+                "text-font": [
+                    "DIN Offc Pro Medium",
+                    "Arial Unicode MS Bold"
+                ],
+                "text-size": 12
+            }
+        });
+});
+        
+</script>
 
 
- 
+
 </body>
