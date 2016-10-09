@@ -1,0 +1,13 @@
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+#map {
+  position: relative;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  width: 90%;
+  margin:auto;
+}
